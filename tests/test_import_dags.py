@@ -55,15 +55,28 @@ class TestDagImports:
         except Exception as e:
             pytest.fail(f"Failed to import {dag_file}: {e}")
 
-    def test_health_check_dag_exists(self) -> None:
-        """Verify that the health check DAG exists and can be imported."""
-        dags_dir = Path(__file__).parent.parent / "dags"
-        if str(dags_dir) not in sys.path:
-            sys.path.insert(0, str(dags_dir))
-        
-        health_check_path = dags_dir / "okx" / "pipelines" / "okx_health_checks.py"
-        assert health_check_path.exists(), "Health check DAG file not found"
-        
-        import_module_from_path(health_check_path)
+
+@pytest.fixture(scope="module")
+def dagbag():
+    from airflow.models import DagBag
+
+    dags_dir = Path(__file__).parent.parent / "dags"
+    return DagBag(dag_folder=str(dags_dir), include_examples=False)
+
+
+def test_dagbag_has_no_import_errors(dagbag) -> None:
+    """Airflow сам парсит папку dags/ так же, как scheduler на сервере."""
+    assert not dagbag.import_errors, dagbag.import_errors
+    assert len(dagbag.dags) > 0
+
+
+def test_master_children_exist(dagbag) -> None:
+    """Каждый DAG, который запускает мастер, должен существовать."""
+    assert "okx_master_raw_to_core_daily" in dagbag.dags
+
+    from okx.pipelines.okx_master_raw_to_core_daily import CHILD_DAGS_IN_ORDER
+
+    missing = [dag_id for dag_id in CHILD_DAGS_IN_ORDER if dag_id not in dagbag.dags]
+    assert not missing, f"Мастер ссылается на несуществующие DAG: {missing}"
 
 
