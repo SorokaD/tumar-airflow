@@ -1,11 +1,11 @@
-# Airflow (for local development and testing)
-apache-airflow==2.10.2
+# Ставить вместе с constraints той же версии Airflow, что на сервере:
+#   pip install -r requirements-dev.txt \
+#     -c https://raw.githubusercontent.com/apache/airflow/constraints-2.10.2/constraints-3.12.txt
+apache-airflow[postgres]==2.10.2
 
 # Testing
-pytest>=7.0.0
+pytest
 
 # Linting
-ruff>=0.1.0
-black>=23.0.0
-
-
+ruff
+black
