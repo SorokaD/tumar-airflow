@@ -339,7 +339,7 @@ SSH через `ssh.github.com:443` (исходящий :22 на части VPS 
 | tumar-ops | Infrastructure (Docker, Traefik, Monitoring, Airflow runtime) |
 | tumar-collector | WebSocket collector → TimescaleDB |
 | tumar-timescaledb | Database schema, migrations |
-| tumar-executor / okx-hft-executor | Trade execution service |
+| tumar-executor | Trade execution service |
 
 ## Контакты
 
