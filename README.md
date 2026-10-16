@@ -42,7 +42,7 @@ Collector Node (217.216.73.20)
 
 Платформа намеренно разделена на два независимых слоя:
 
-### okx-hft-ops (Infrastructure layer)
+### tumar-ops (Infrastructure layer)
 Отвечает за:
 - запуск Airflow (webserver, scheduler, metadata DB)
 - docker-compose конфигурацию
@@ -55,7 +55,7 @@ Collector Node (217.216.73.20)
 
 ---
 
-### okx-hft-airflow-dags (Logic layer, этот репозиторий)
+### tumar-airflow (Logic layer, этот репозиторий)
 Отвечает за:
 - DAG-и
 - data health checks
@@ -277,11 +277,11 @@ bash scripts/lint.sh
 
 ```bash
 # Клонировать репозиторий
-git clone git@github.com:tumar-tech/okx-hft-airflow-dags.git
-cd okx-hft-airflow-dags
+git clone git@github.com:SorokaD/tumar-airflow.git
+cd tumar-airflow
 
 # Создать виртуальное окружение
-python3.11 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 
 # Установить зависимости
@@ -298,29 +298,33 @@ bash scripts/test.sh
 
 ### GitHub Actions
 
-На каждый push и pull_request:
-1. Checkout кода
-2. Setup Python 3.11
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+На каждый PR и push в `main` / `develop`:
+1. Checkout
+2. Setup Python **3.12** + constraints Airflow **2.10.2**
 3. Install dependencies
-4. Lint (ruff, black)
-5. Test (pytest import check)
+4. Lint (ruff, black) — пока `continue-on-error`
+5. Test (pytest, DagBag / import checks)
+
+Отдельного deploy workflow нет: после merge в `main` DAG-и забирает git-sync на ops.
 
 ### Git-sync
 
-Airflow Worker настроен на синхронизацию:
+На ops (tumar-ops, `docker/docker-compose.ml.yaml`):
 
 ```yaml
-# docker-compose.yaml (в okx-hft-ops)
-git-sync:
-  image: registry.k8s.io/git-sync/git-sync:v4.2.1
+airflow-git-sync:
+  image: registry.k8s.io/git-sync/git-sync:v4.2.3
   environment:
-    GITSYNC_REPO: https://github.com/tumar-tech/okx-hft-airflow-dags.git
-    GITSYNC_BRANCH: main
-    GITSYNC_ROOT: /dags
-    GITSYNC_PERIOD: 60s
+    GITSYNC_REPO: ssh://git@ssh.github.com:443/SorokaD/tumar-airflow.git
+    GITSYNC_REF: main
+    GITSYNC_PERIOD: 30s
+    GITSYNC_SSH: "true"
+    GITSYNC_MAX_FAILURES: "-1"
 ```
 
-После push в `main` - DAG-и появятся в Airflow UI через 1 минуту.
+SSH через `ssh.github.com:443` (исходящий :22 на части VPS режется). После merge в `main` DAG-и обычно видны в UI за ~30–60 с.
 
 ## Мониторинг
 
@@ -332,10 +336,10 @@ git-sync:
 
 | Репозиторий | Описание |
 |-------------|----------|
-| okx-hft-ops | Infrastructure (Docker, Traefik, Monitoring) |
-| okx-hft-collector | WebSocket collector -> TimescaleDB |
-| okx-hft-timescaledb | Database schema, migrations |
-| okx-hft-executor | Trade execution service |
+| tumar-ops | Infrastructure (Docker, Traefik, Monitoring, Airflow runtime) |
+| tumar-collector | WebSocket collector → TimescaleDB |
+| tumar-timescaledb | Database schema, migrations |
+| tumar-executor / okx-hft-executor | Trade execution service |
 
 ## Контакты
 
